@@ -1,0 +1,275 @@
+using System.Xml;
+using System.Xml.Linq;
+using Preverjanje1b.src.Models;
+
+namespace Preverjanje1b.src.Services
+{
+    internal class XmlService
+    {
+        private readonly string _studPath;
+        private readonly string _subjPath;
+        private readonly string _dtdPath;
+        private readonly string _xsdPath;
+
+        public XmlService(string studentiPath, string predmetiPath, string dtdPath, string xsdPath)
+        {
+            _studPath = studentiPath;
+            _subjPath = predmetiPath;
+            _dtdPath = dtdPath;
+            _xsdPath = xsdPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(_studPath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(_subjPath)!);
+            if (!File.Exists(_studPath)) SeedStudents();
+            if (!File.Exists(_subjPath)) SeedSubjects();
+        }
+
+        // TODO(5): Dodaj 'student' element (z atributoma id, letnik in elementi ime, priimek, povprecje, predmetRef*)
+        // Po spremembi pokliči ValidateWithDtd in šele ob uspehu doc.Save(_studPath)
+        public void DodajStudent(Student s)
+        {
+            var doc = XDocument.Load(_studPath);
+            var root = doc.Root;
+
+            if (root == null)
+            {
+                Console.WriteLine("Error: Root element not found.");
+                return;
+            }
+
+            // Določi stopnjo glede na letnik (1 = VS, 2-3 = MAG)
+            var stopnja = s.Letnik == 1 ? "VS" : "MAG";
+
+            var studentElement = new XElement("student",
+                new XAttribute("id", s.Id),
+                new XAttribute("letnik", s.Letnik),
+                new XAttribute("stopnja", stopnja),
+                new XElement("ime", s.Ime),
+                new XElement("priimek", s.Priimek),
+                new XElement("povprecje", s.Povprecje.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            );
+
+            // Dodaj predmetRef elemente
+            foreach (var predmetRef in s.PredmetRefs)
+            {
+                studentElement.Add(new XElement("predmetRef", new XAttribute("ref", predmetRef)));
+            }
+
+            root.Add(studentElement);
+
+            // Validate with DTD
+            if (ValidateWithDtd(doc, _studPath))
+            {
+                doc.Save(_studPath);
+                Console.WriteLine("Študent uspešno dodan in validiran.");
+            }
+            else
+            {
+                Console.WriteLine("Validacija ni uspela. Študent ni bil shranjen.");
+            }
+        }
+
+        // TODO(6): Dodaj 'predmet' element (atributa id, obvezen; elementi naziv, ECTS, nosilec)
+        // Validiraj z DTD in ob uspehu doc.Save(_subjPath)
+        public void DodajPredmet(Predmet p)
+        {
+            var doc = XDocument.Load(_subjPath);
+            var root = doc.Root;
+
+            if (root == null)
+            {
+                Console.WriteLine("Error: Root element not found.");
+                return;
+            }
+
+            var predmetElement = new XElement("predmet",
+                new XAttribute("id", p.Id),
+                new XAttribute("obvezen", p.Obvezen),
+                new XElement("naziv", p.Naziv),
+                new XElement("ECTS", p.ECTS),
+                new XElement("nosilec", p.Predavatelj)
+            );
+
+            // Dodaj stopnjo, če je potrebno (VS ali MAG)
+            // Za poenostavitev lahko uporabimo VS
+            predmetElement.Add(new XAttribute("stopnja", "VS"));
+
+            root.Add(predmetElement);
+
+            // Validate with DTD
+            if (ValidateWithDtd(doc, _subjPath))
+            {
+                doc.Save(_subjPath);
+                Console.WriteLine("Predmet uspešno dodan in validiran.");
+            }
+            else
+            {
+                Console.WriteLine("Validacija ni uspela. Predmet ni bil shranjen.");
+            }
+        }
+
+        // TODO(7): Vrni besedilne vrstice: "S{id} Ime Priimek -> P1:Naziv(ECTS), P2:Naziv(ECTS)"
+        public IEnumerable<string> IzpisiStudenteSPredmeti()
+        {
+            var studDoc = XDocument.Load(_studPath);
+            var subjDoc = XDocument.Load(_subjPath);
+
+            var results = new List<string>();
+
+            var students = studDoc.Root?.Elements("student");
+            if (students == null) return results;
+
+            foreach (var student in students)
+            {
+                var id = student.Attribute("id")?.Value ?? "?";
+                var ime = student.Element("ime")?.Value ?? "";
+                var priimek = student.Element("priimek")?.Value ?? "";
+
+                var predmetRefs = student.Elements("predmetRef")
+                    .Select(pr => pr.Attribute("ref")?.Value)
+                    .Where(refId => !string.IsNullOrEmpty(refId))
+                    .ToList();
+
+                var predmetiInfo = new List<string>();
+
+                foreach (var refId in predmetRefs)
+                {
+                    var predmet = subjDoc.Root?.Elements("predmet")
+                        .FirstOrDefault(p => p.Attribute("id")?.Value == refId);
+
+                    if (predmet != null)
+                    {
+                        var naziv = predmet.Element("naziv")?.Value ?? "?";
+                        var ects = predmet.Element("ECTS")?.Value ?? "?";
+                        predmetiInfo.Add($"{refId}:{naziv}({ects})");
+                    }
+                }
+
+                var predmetiStr = string.Join(", ", predmetiInfo);
+                results.Add($"{id} {ime} {priimek} -> {predmetiStr}");
+            }
+
+            return results;
+        }
+
+        // ===== Helpers (dano) =====
+        private static bool ValidateWithDtd(XDocument xdoc, string baseUriPath)
+        {
+            try
+            {
+                var settings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Parse,
+                    ValidationType = ValidationType.DTD,
+                    XmlResolver = new XmlUrlResolver()
+                };
+                settings.ValidationEventHandler += (s, e) => throw new Exception(e.Message);
+                using var sr = new StringReader(xdoc.ToString(SaveOptions.DisableFormatting));
+                using var xr = XmlReader.Create(sr, settings, baseUriPath); // baseUri for SYSTEM "model.dtd"
+                while (xr.Read())
+                {
+                    /* force validation */
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DTD] {ex.Message}");
+                return false;
+            }
+        }
+
+        private bool ValidateWithXsd(XDocument xdoc)
+        {
+            try
+            {
+                var settings = new XmlReaderSettings
+                {
+                    ValidationType = ValidationType.Schema
+                };
+                settings.Schemas.Add(null, _xsdPath);
+                settings.ValidationEventHandler += (s, e) => throw new Exception(e.Message);
+
+                using var sr = new StringReader(xdoc.ToString(SaveOptions.DisableFormatting));
+                using var xr = XmlReader.Create(sr, settings);
+                while (xr.Read())
+                {
+                    /* force validation */
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[XSD] {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool ValidateFileWithXsd(string which)
+        {
+            string path = which == "predmeti" ? _subjPath : _studPath;
+            var doc = XDocument.Load(path);
+            return ValidateWithXsd(doc);
+        }
+
+        private XDocument LoadWithDtd(string path)
+        {
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Parse,
+                ValidationType = ValidationType.DTD,
+                XmlResolver = new XmlUrlResolver()
+            };
+            using var reader = XmlReader.Create(path, settings);
+            return XDocument.Load(reader, LoadOptions.SetBaseUri | LoadOptions.SetLineInfo);
+        }
+
+        private void SeedStudents()
+        {
+            var xml = @"<!DOCTYPE studenti SYSTEM ""model.dtd"">
+                        <studenti fakulteta=""UM FERI"">
+                          <student id=""ST001"" letnik=""1"" stopnja=""VS"">
+                            <ime>Eva</ime>
+                            <priimek>Kranjc</priimek>
+                            <povprecje>8.4</povprecje>
+                            <predmetRef ref=""PR01""/>
+                            <predmetRef ref=""PR02""/>
+                          </student>
+                          <student id=""ST002"" letnik=""2"" stopnja=""MAG"">
+                            <ime>Luka</ime>
+                            <priimek>Horvat</priimek>
+                            <povprecje>7.6</povprecje>
+                            <predmetRef ref=""PR01""/>
+                            <predmetRef ref=""PR03""/>
+                          </student>
+                        </studenti>
+                        ";
+            File.WriteAllText(_studPath, xml);
+        }
+
+        private void SeedSubjects()
+        {
+            var xml = @"<!DOCTYPE predmeti SYSTEM ""model.dtd"">
+                        <predmeti>
+                          <predmet id=""PR01"" obvezen=""da"" stopnja=""VS"">
+                            <naziv>Programiranje 2</naziv>
+                            <ECTS>6</ECTS>
+                            <nosilec>dr. Novak</nosilec>
+                          </predmet>
+                          <predmet id=""PR02"" obvezen=""ne"" stopnja=""VS"">
+                            <naziv>Osnove omrežij</naziv>
+                            <ECTS>5</ECTS>
+                            <nosilec>mag. Zajc</nosilec>
+                          </predmet>
+                          <predmet id=""PR03"" obvezen=""da"" stopnja=""MAG"">
+                            <naziv>Napredne podatkovne baze</naziv>
+                            <ECTS>6</ECTS>
+                            <nosilec>dr. Kovač</nosilec>
+                          </predmet>
+                        </predmeti>
+                        ";
+            File.WriteAllText(_subjPath, xml);
+        }
+    }
+}
