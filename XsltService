@@ -1,0 +1,29 @@
+using System.Xml;
+using System.Xml.Xsl;
+
+namespace Preverjanje2b.src.Services;
+
+public class XsltService
+{
+    public void TransformToHtml(string xmlPath, string xslPath, string outputPath)
+    {
+        XslCompiledTransform xslt = new XslCompiledTransform();
+        xslt.Load(xslPath);
+
+        using (XmlWriter writer = XmlWriter.Create(outputPath))
+        {
+            xslt.Transform(xmlPath, writer);
+        }
+    }
+
+    public void TransformToFo(string xmlPath, string xslPath, string outputFoPath)
+    {
+        XslCompiledTransform xslt = new XslCompiledTransform();
+        xslt.Load(xslPath);
+
+        using (XmlWriter writer = XmlWriter.Create(outputFoPath))
+        {
+            xslt.Transform(xmlPath, writer);
+        }
+    }
+}
