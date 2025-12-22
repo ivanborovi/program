@@ -1,0 +1,24 @@
+using Fonet;
+
+namespace Preverjanje2b.src.Services;
+
+public class PdfService
+{
+    public void GeneratePdfFromFo(string foPath, string pdfPath)
+    {
+        try
+        {
+            using (FileStream foStream = new FileStream(foPath, FileMode.Open))
+            using (FileStream pdfStream = new FileStream(pdfPath, FileMode.Create))
+            {
+                FonetDriver driver = FonetDriver.Make();
+                driver.Render(foStream, pdfStream);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Napaka pri generiranju PDF: {ex.Message}");
+            throw;
+        }
+    }
+}
