@@ -1,0 +1,99 @@
+using System.Globalization;
+using System.Xml.Linq;
+using Xceed.Document.NET;
+using Xceed.Words.NET;
+
+namespace Preverjanje2b.src.Services;
+
+public class DocxService
+{
+    public void CreateDocxFromXml(string xmlPath, string outputDocxPath)
+    {
+        XDocument doc = XDocument.Load(xmlPath);
+
+        using (var document = DocX.Create(outputDocxPath))
+        {
+            document.InsertParagraph("Poročilo o študentih")
+                .FontSize(18)
+                .Bold()
+                .Alignment = Alignment.center;
+
+            document.InsertParagraph();
+
+            var students = doc.Descendants("student").ToList();
+
+            var table = document.AddTable(students.Count + 1, 4);
+            table.Design = TableDesign.LightGridAccent1;
+
+            table.Rows[0].Cells[0].Paragraphs[0].Append("Ime").Bold();
+            table.Rows[0].Cells[1].Paragraphs[0].Append("Priimek").Bold();
+            table.Rows[0].Cells[2].Paragraphs[0].Append("Letnik").Bold();
+            table.Rows[0].Cells[3].Paragraphs[0].Append("Povprečje").Bold();
+
+            int rowIndex = 1;
+            foreach (var student in students)
+            {
+                string ime = student.Element("ime")?.Value ?? "";
+                string priimek = student.Element("priimek")?.Value ?? "";
+                string letnik = student.Element("letnik")?.Value ?? "";
+                string povprecje = student.Element("povprecje")?.Value ?? "";
+
+                table.Rows[rowIndex].Cells[0].Paragraphs[0].Append(ime);
+                table.Rows[rowIndex].Cells[1].Paragraphs[0].Append(priimek);
+                table.Rows[rowIndex].Cells[2].Paragraphs[0].Append(letnik);
+                table.Rows[rowIndex].Cells[3].Paragraphs[0].Append(povprecje);
+
+                rowIndex++;
+            }
+
+            document.InsertTable(table);
+            document.Save();
+        }
+    }
+
+    public void ExtractToUniversalXml(string docxPath, string outputXmlPath)
+    {
+        using (var document = DocX.Load(docxPath))
+        {
+            if (document.Tables.Count == 0)
+            {
+                throw new Exception("V DOCX dokumentu ni nobene tabele!");
+            }
+
+            var table = document.Tables[0];
+
+            Dictionary<int, List<double>> letniki = new Dictionary<int, List<double>>();
+
+            for (int i = 1; i < table.RowCount; i++)
+            {
+                string letnikStr = table.Rows[i].Cells[2].Paragraphs[0].Text;
+                string povprecjeStr = table.Rows[i].Cells[3].Paragraphs[0].Text;
+
+                if (int.TryParse(letnikStr, out int letnik) &&
+                    double.TryParse(povprecjeStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double povprecje))
+                {
+                    if (!letniki.ContainsKey(letnik))
+                    {
+                        letniki[letnik] = new List<double>();
+                    }
+                    letniki[letnik].Add(povprecje);
+                }
+            }
+
+            XDocument xmlDoc = new XDocument(
+                new XDeclaration("1.0", "UTF-8", null),
+                new XElement("universityData",
+                    from kvp in letniki.OrderBy(x => x.Key)
+                    select new XElement("yearReport",
+                        new XElement("year", kvp.Key),
+                        new XElement("studentCount", kvp.Value.Count),
+                        new XElement("averageGrade",
+                            Math.Round(kvp.Value.Average(), 2).ToString("F2", CultureInfo.InvariantCulture))
+                    )
+                )
+            );
+
+            xmlDoc.Save(outputXmlPath);
+        }
+    }
+}
