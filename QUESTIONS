@@ -2,3 +2,14 @@ reko je da stevilo odllicanjakov ne listo njih na eni
 
 
 I dont understand what you talking about to ni slovnicno pravilna poved
+
+
+to je prav vglavneg
+
+its hard to talk he walks a lot
+    public void IzpisiStOdlicnjakov()
+    {
+        throw new NotImplementedException("TODO: IzpisiStOdlicnjakov");
+
+
+    }
