@@ -17,3 +17,18 @@ send based on what u get, i will sy if its right
 
 
 ZAJ BOM DAL PROJEKT NOT spremenil sem ime od SOLUTIONA
+    public void IzpisiStOdlicnjakov()
+    {
+        string query = "//student/ime";
+        XPathNodeIterator iterator = _nav.Select(query);
+        while (iterator.MoveNext())
+        {
+            Console.WriteLine(iterator.Current.Value);
+        }
+        Console.WriteLine();
+    }
+   toMiDaVsaImena ucencov zodlicno moro bi samo stevilo kolko jih je
+        Izbira: 1
+Ana
+Marko
+Nika
