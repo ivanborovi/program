@@ -1,0 +1,9 @@
+Seznam spremenjenih datotek:
+
+XPathService.cs - /src/Services/XPathService.cs
+XsltService.cs - /src/Services/XsltService.cs
+ValidationService.cs - /src/Services/ValidationService.cs
+PdfService.cs - /src/Services/PdfService.cs
+DocxService.cs - /src/Services/DocxService.cs
+base.xsl - /data/base.xsl
+porociloPDF.xsl - /data/porociloPDF.xsl
