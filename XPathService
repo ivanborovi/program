@@ -1,0 +1,129 @@
+using System.Xml;
+using System.Xml.XPath;
+
+namespace Preverjanje2c.src.Services;
+
+public class XPathService
+{
+    private readonly XPathDocument _doc;
+    private readonly XPathNavigator _nav;
+
+    public XPathService(string xmlPath)
+    {
+        _doc = new XPathDocument(xmlPath);
+        _nav = _doc.CreateNavigator();
+    }
+
+    public void IzpisiVsaImenaStudentov()
+    {
+        Console.WriteLine("\n Vsa imena študentov");
+
+        string query = "//student/ime";
+        XPathNodeIterator iterator = _nav.Select(query);
+
+        int count = 0;
+        while (iterator.MoveNext())
+        {
+            count++;
+            Console.WriteLine($"{count}. {iterator.Current.Value}");
+        }
+
+        Console.WriteLine($"\nSkupaj študentov: {count}");
+    }
+
+    public void IzpisiPredmetovStudentaZNadOceno(int minOcena)
+    {
+        Console.WriteLine($"\n'''-----'''Predmeti študentov z oceno >= {minOcena} ----");
+
+        string queryStudenti = "//student";
+        XPathNodeIterator studenti = _nav.Select(queryStudenti);
+
+        while (studenti.MoveNext())
+        {
+            XPathNavigator studentNav = studenti.Current.Clone();
+
+            string ime = studentNav.SelectSingleNode("ime")?.Value ?? "";
+            string priimek = studentNav.SelectSingleNode("priimek")?.Value ?? "";
+            string vpisnaStevilka = studentNav.SelectSingleNode("vpisnaStevilka")?.Value ?? "";
+
+            string queryPredmeti = $".//predmet[ocena >= {minOcena}]";
+            XPathNodeIterator predmeti = studentNav.Select(queryPredmeti);
+
+            List<XPathNavigator> predmetiList = new List<XPathNavigator>();
+            while (predmeti.MoveNext())
+            {
+                predmetiList.Add(predmeti.Current.Clone());
+            }
+
+            if (predmetiList.Count > 0)
+            {
+                Console.WriteLine($"\n{ime} {priimek} ({vpisnaStevilka}):");
+
+                foreach (var predmet in predmetiList)
+                {
+                    string koda = predmet.GetAttribute("koda", "");
+                    string naziv = predmet.SelectSingleNode("naziv")?.Value ?? "";
+                    string ocena = predmet.SelectSingleNode("ocena")?.Value ?? "";
+                    string kreditne = predmet.SelectSingleNode("kt")?.Value ?? "";
+
+                    Console.WriteLine($"  - {naziv} ({koda}): {ocena} [{kreditne} ECTS]");
+                }
+            }
+        }
+    }
+
+    public void IzpisiStatistikoOcen()
+    {
+        Console.WriteLine("\n--- Statistika ocen po študentih ---");
+
+        string queryStudenti = "//student";
+        XPathNodeIterator studenti = _nav.Select(queryStudenti);
+
+        while (studenti.MoveNext())
+        {
+            XPathNavigator studentNav = studenti.Current.Clone();
+
+            string ime = studentNav.SelectSingleNode("ime")?.Value ?? "";
+            string priimek = studentNav.SelectSingleNode("priimek")?.Value ?? "";
+            string queryPovprecje = "sum(.//predmet/ocena) div count(.//predmet/ocena)";
+            double povprecje = (double)studentNav.Evaluate(queryPovprecje);
+            XPathNodeIterator oceneIter = studentNav.Select(".//predmet/ocena");
+            List<int> ocene = new List<int>();
+            while (oceneIter.MoveNext())
+            {
+                ocene.Add(int.Parse(oceneIter.Current.Value));
+            }
+
+            if (ocene.Count > 0)
+            {
+                int min = ocene.Min();
+                int max = ocene.Max();
+
+                Console.WriteLine($"\n{ime} {priimek}:");
+                Console.WriteLine($"         Število predmetov: {ocene.Count}");
+                Console.WriteLine($"         Povprečna ocena: {povprecje:F2}");
+                Console.WriteLine($"         Najnižja ocena: {min}");
+                Console.WriteLine($"         Najvišja ocena: {max}");
+            }
+        }
+    }
+
+    // ===== Helpers (dano) =====
+    public void XpathNav(string query, XPathNavigator nav)
+    {
+        XPathNodeIterator it = nav.Select(query);
+        Console.WriteLine("Results for query: " + query);
+        while (it.MoveNext())
+        {
+            Console.WriteLine(it.Current.Value);
+        }
+        Console.WriteLine();
+    }
+
+    public void XpathEvaluate(string query, XPathNavigator nav)
+    {
+        string result = nav.Evaluate(query).ToString();
+        Console.WriteLine("Results for query: " + query);
+        Console.WriteLine(result);
+    }
+}
