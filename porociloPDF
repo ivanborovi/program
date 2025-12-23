@@ -131,7 +131,7 @@
 						<fo:inline font-weight="bold">Legenda: </fo:inline>
 						<fo:inline font-weight="bold">max (krepko)</fo:inline>
 						<fo:inline>, </fo:inline>
-						<fo:inline text-decoration="underline">min (podčrtano)</fo:inline>
+						<fo:inline text-decoration="underline">min</fo:inline>
 					</fo:block>
 
 				</fo:flow>
