@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0"
+      xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+
+	<xsl:output method="html" indent="yes" encoding="UTF-8"/>
+
+
+	<xsl:template match="/">
+		<html>
+			<head>
+				<meta charset="UTF-8"/>
+				<title>Predmeti po študentih (ocena ≥ X)</title>
+				<style>
+					table { border-collapse: collapse; margin-bottom: 20px; }
+					th, td { border: 1px solid #333; padding: 4px; }
+					.min { font-weight: bold; text-decoration: underline; }
+					.max { font-weight: bold; }
+				</style>
+			</head>
+
+			<body>
+				<h2>
+					Predmeti posameznega študenta (ocena ≥ 8)
+				</h2>
+				<xsl:for-each select="//student">
+					<xsl:variable name="predmetiFiltered" select="predmeti/predmet[ocena &gt;= 8]"/>
+
+					<xsl:if test="count($predmetiFiltered) &gt; 0">
+						<h3>
+							<xsl:value-of select="ime"/>
+							<xsl:text> </xsl:text>
+							<xsl:value-of select="priimek"/>
+							<xsl:text> (</xsl:text>
+							<xsl:value-of select="vpisnaStevilka"/>
+							<xsl:text>)</xsl:text>
+						</h3>
+
+						<xsl:variable name="minOcena">
+							<xsl:for-each select="$predmetiFiltered">
+								<xsl:sort select="ocena" data-type="number" order="ascending"/>
+								<xsl:if test="position() = 1">
+									<xsl:value-of select="ocena"/>
+								</xsl:if>
+							</xsl:for-each>
+						</xsl:variable>
+
+						<xsl:variable name="maxOcena">
+							<xsl:for-each select="$predmetiFiltered">
+								<xsl:sort select="ocena" data-type="number" order="descending"/>
+								<xsl:if test="position() = 1">
+									<xsl:value-of select="ocena"/>
+								</xsl:if>
+							</xsl:for-each>
+						</xsl:variable>
+
+						<table>
+							<tr>
+								<th>Koda</th>
+								<th>Naziv</th>
+								<th>Kreditne točke</th>
+								<th>Ocena</th>
+							</tr>
+
+							<xsl:for-each select="$predmetiFiltered">
+								<tr>
+									<td>
+										<xsl:value-of select="@koda"/>
+									</td>
+									<td>
+										<xsl:value-of select="naziv"/>
+									</td>
+									<td>
+										<xsl:value-of select="kt"/>
+									</td>
+									<td>
+										<xsl:choose>
+											<xsl:when test="ocena = $minOcena and ocena = $maxOcena">
+												<span class="min max">
+													<xsl:value-of select="ocena"/>
+												</span>
+											</xsl:when>
+											<xsl:when test="ocena = $minOcena">
+												<span class="min">
+													<xsl:value-of select="ocena"/>
+												</span>
+											</xsl:when>
+											<xsl:when test="ocena = $maxOcena">
+												<span class="max">
+													<xsl:value-of select="ocena"/>
+												</span>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:value-of select="ocena"/>
+											</xsl:otherwise>
+										</xsl:choose>
+									</td>
+								</tr>
+							</xsl:for-each>
+						</table>
+					</xsl:if>
+				</xsl:for-each>
+				<p>
+					<strong>Legenda:</strong>
+					<span class="max">max</span>,
+					<span class="min">min</span>
+				</p>
+			</body>
+		</html>
+	</xsl:template>
+
+</xsl:stylesheet>
