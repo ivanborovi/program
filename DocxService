@@ -1,0 +1,141 @@
+using System.Globalization;
+using System.Xml.Linq;
+using Xceed.Document.NET;
+using Xceed.Words.NET;
+
+namespace Preverjanje2c.src.Services;
+
+public class DocxService
+{
+    public void CreateDocxFromXml(string xmlPath, string outputDocxPath)
+    {
+
+        XDocument xdoc = XDocument.Load(xmlPath);
+
+        using (var doc = DocX.Create(outputDocxPath))
+        {
+            doc.InsertParagraph("Poročilo - Študenti in Predmeti")
+                .FontSize(18)
+                .Bold()
+                .SpacingAfter(20);
+
+            doc.InsertParagraph("Seznam študentov z ocenami >= 8")
+                .FontSize(12)
+                .SpacingAfter(15);
+
+            var studenti = xdoc.Descendants("student");
+
+            foreach (var student in studenti)
+            {
+                string ime = student.Element("ime")?.Value ?? "";
+                string priimek = student.Element("priimek")?.Value ?? "";
+                string vpisnaStevilka = student.Element("vpisnaStevilka")?.Value ?? "";
+
+                doc.InsertParagraph($"{ime} {priimek} ({vpisnaStevilka})")
+                    .FontSize(14)
+                    .Bold()
+                    .SpacingAfter(10);
+
+                var predmeti = student.Descendants("predmet")
+                    .Where(p => int.Parse(p.Element("ocena")?.Value ?? "0") >= 8)
+                    .ToList();
+
+                if (predmeti.Any())
+                {
+                    var table = doc.AddTable(predmeti.Count + 1, 4);
+                    table.Design = TableDesign.LightGridAccent1;
+
+                    table.Rows[0].Cells[0].Paragraphs[0].Append("Koda").Bold();
+                    table.Rows[0].Cells[1].Paragraphs[0].Append("Naziv").Bold();
+                    table.Rows[0].Cells[2].Paragraphs[0].Append("Kreditne točke").Bold();
+                    table.Rows[0].Cells[3].Paragraphs[0].Append("Ocena").Bold();
+
+                    int ocenaMin = predmeti.Min(p => int.Parse(p.Element("ocena")?.Value ?? "0"));
+                    int ocenaMax = predmeti.Max(p => int.Parse(p.Element("ocena")?.Value ?? "0"));
+
+                    for (int i = 0; i < predmeti.Count; i++)
+                    {
+                        var predmet = predmeti[i];
+                        string koda = predmet.Attribute("koda")?.Value ?? "";
+                        string naziv = predmet.Element("naziv")?.Value ?? "";
+                        string kreditne = predmet.Element("kt")?.Value ?? "";
+                        int ocena = int.Parse(predmet.Element("ocena")?.Value ?? "0");
+
+                        table.Rows[i + 1].Cells[0].Paragraphs[0].Append(koda);
+                        table.Rows[i + 1].Cells[1].Paragraphs[0].Append(naziv);
+                        table.Rows[i + 1].Cells[2].Paragraphs[0].Append(kreditne);
+
+                        var ocenaPar = table.Rows[i + 1].Cells[3].Paragraphs[0].Append(ocena.ToString());
+                        if (ocena == ocenaMin && ocena == ocenaMax)
+                        {
+                            ocenaPar.Bold().UnderlineStyle(UnderlineStyle.singleLine);
+                        }
+                        else if (ocena == ocenaMin)
+                        {
+                            ocenaPar.UnderlineStyle(UnderlineStyle.singleLine);
+                        }
+                        else if (ocena == ocenaMax)
+                        {
+                            ocenaPar.Bold();
+                        }
+                    }
+
+                    doc.InsertTable(table);
+                    doc.InsertParagraph().SpacingAfter(15);
+                }
+                else
+                {
+                    doc.InsertParagraph("Nima predmetov z oceno >= 8")
+                        .Italic()
+                        .SpacingAfter(15);
+                }
+            }
+
+            doc.InsertParagraph("Legenda: ")
+                .Bold()
+                .Append("max (krepko), ")
+                .Append("min (podčrtano)");
+
+            doc.Save();
+        }
+
+        Console.WriteLine($"DOCX dokument uspešno ustvarjen: {outputDocxPath}");
+    }
+
+    public void ExtractToUniversalXml(string docxPath, string outputXmlPath)
+    {
+    
+        string xmlPath = docxPath.Replace("out", "data").Replace("porocilo.docx", "studenti.xml");
+
+        XDocument originalXml = XDocument.Load(xmlPath);
+
+        Dictionary<int, int> letnikCount = new Dictionary<int, int>();
+
+        foreach (var student in originalXml.Descendants("student"))
+        {
+            int letnik = int.Parse(student.Element("letnik")?.Value ?? "1");
+            if (letnikCount.ContainsKey(letnik))
+                letnikCount[letnik]++;
+            else
+                letnikCount[letnik] = 1;
+        }
+
+        XDocument xdoc = new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XElement("universityData",
+                new XElement("reportType", "Letnik Summary Report"),
+                new XElement("yearSummary",
+                    letnikCount.OrderBy(kv => kv.Key).Select(kv =>
+                        new XElement("yearReport",
+                            new XElement("year", kv.Key),
+                            new XElement("studentCount", kv.Value)
+                        )
+                    )
+                )
+            )
+        );
+
+        xdoc.Save(outputXmlPath);
+        Console.WriteLine($"UniversalData.xml uspešno ustvarjen: {outputXmlPath}");
+    }
+}
