@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0"
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:fo="http://www.w3.org/1999/XSL/Format">
+
+	<xsl:output method="xml" indent="yes" encoding="UTF-8"/>
+
+
+	<xsl:template match="/">
+		<fo:root>
+			<fo:layout-master-set>
+				<fo:simple-page-master master-name="A4" margin="2cm">
+					<fo:region-body/>
+				</fo:simple-page-master>
+			</fo:layout-master-set>
+
+			<fo:page-sequence master-reference="A4">
+				<fo:flow flow-name="xsl-region-body">
+
+					<fo:block font-size="18pt" font-weight="bold" space-after="8pt">
+						Poročilo – predmeti po študentih (ocena ≥ 8)
+					</fo:block>
+
+					<fo:block space-after="10pt">
+						MIN/MAX sta označena lokalno pri posameznem študentu (med predmeti, ki ustrezajo pogoju).
+					</fo:block>
+					<xsl:for-each select="//student">
+						<xsl:variable name="predmetiFiltered" select="predmeti/predmet[ocena &gt;= 8]"/>
+
+						<xsl:if test="count($predmetiFiltered) &gt; 0">
+							<fo:block font-size="14pt" font-weight="bold" space-before="12pt" space-after="8pt">
+								<xsl:value-of select="ime"/>
+								<xsl:text> </xsl:text>
+								<xsl:value-of select="priimek"/>
+								<xsl:text> (</xsl:text>
+								<xsl:value-of select="vpisnaStevilka"/>
+								<xsl:text>)</xsl:text>
+							</fo:block>
+
+							<xsl:variable name="minOcena">
+								<xsl:for-each select="$predmetiFiltered">
+									<xsl:sort select="ocena" data-type="number" order="ascending"/>
+									<xsl:if test="position() = 1">
+										<xsl:value-of select="ocena"/>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:variable>
+
+							<xsl:variable name="maxOcena">
+								<xsl:for-each select="$predmetiFiltered">
+									<xsl:sort select="ocena" data-type="number" order="descending"/>
+									<xsl:if test="position() = 1">
+										<xsl:value-of select="ocena"/>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:variable>
+
+							<fo:table border="1pt solid black" space-after="12pt">
+								<fo:table-column column-width="3cm"/>
+								<fo:table-column column-width="8cm"/>
+								<fo:table-column column-width="3cm"/>
+								<fo:table-column column-width="3cm"/>
+
+								<fo:table-header>
+									<fo:table-row background-color="#CCCCCC">
+										<fo:table-cell border="1pt solid black" padding="2pt">
+											<fo:block font-weight="bold">Koda</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border="1pt solid black" padding="2pt">
+											<fo:block font-weight="bold">Naziv</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border="1pt solid black" padding="2pt">
+											<fo:block font-weight="bold">Kreditne točke</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border="1pt solid black" padding="2pt">
+											<fo:block font-weight="bold">Ocena</fo:block>
+										</fo:table-cell>
+									</fo:table-row>
+								</fo:table-header>
+
+								<fo:table-body>
+									<xsl:for-each select="$predmetiFiltered">
+										<fo:table-row>
+											<fo:table-cell border="1pt solid black" padding="2pt">
+												<fo:block>
+													<xsl:value-of select="@koda"/>
+												</fo:block>
+											</fo:table-cell>
+											<fo:table-cell border="1pt solid black" padding="2pt">
+												<fo:block>
+													<xsl:value-of select="naziv"/>
+												</fo:block>
+											</fo:table-cell>
+											<fo:table-cell border="1pt solid black" padding="2pt">
+												<fo:block>
+													<xsl:value-of select="kt"/>
+												</fo:block>
+											</fo:table-cell>
+											<fo:table-cell border="1pt solid black" padding="2pt">
+												<fo:block>
+													<xsl:choose>
+														<xsl:when test="ocena = $minOcena and ocena = $maxOcena">
+															<xsl:attribute name="font-weight">bold</xsl:attribute>
+															<xsl:attribute name="text-decoration">underline</xsl:attribute>
+															<xsl:value-of select="ocena"/>
+														</xsl:when>
+														<xsl:when test="ocena = $minOcena">
+															<xsl:attribute name="text-decoration">underline</xsl:attribute>
+															<xsl:value-of select="ocena"/>
+														</xsl:when>
+														<xsl:when test="ocena = $maxOcena">
+															<xsl:attribute name="font-weight">bold</xsl:attribute>
+															<xsl:value-of select="ocena"/>
+														</xsl:when>
+														<xsl:otherwise>
+															<xsl:value-of select="ocena"/>
+														</xsl:otherwise>
+													</xsl:choose>
+												</fo:block>
+											</fo:table-cell>
+										</fo:table-row>
+									</xsl:for-each>
+								</fo:table-body>
+							</fo:table>
+						</xsl:if>
+					</xsl:for-each>
+
+					<fo:block space-before="10pt">
+						<fo:inline font-weight="bold">Legenda: </fo:inline>
+						<fo:inline font-weight="bold">max (krepko)</fo:inline>
+						<fo:inline>, </fo:inline>
+						<fo:inline text-decoration="underline">min (podčrtano)</fo:inline>
+					</fo:block>
+
+				</fo:flow>
+			</fo:page-sequence>
+		</fo:root>
+	</xsl:template>
+
+</xsl:stylesheet>
