@@ -1,0 +1,35 @@
+using System.Xml;
+using System.Xml.Xsl;
+
+namespace Preverjanje2c.src.Services;
+
+public class XsltService
+{
+    public void TransformToHtml(string xmlPath, string xslPath, string outputPath)
+    {
+        XslCompiledTransform xslt = new XslCompiledTransform();
+        xslt.Load(xslPath);
+
+        using (XmlReader reader = XmlReader.Create(xmlPath))
+        using (XmlWriter writer = XmlWriter.Create(outputPath, new XmlWriterSettings { Indent = true }))
+        {
+            xslt.Transform(reader, writer);
+        }
+
+        Console.WriteLine($"HTML transformacija uspešna: {outputPath}");
+    }
+
+    public void TransformToFo(string xmlPath, string xslPath, string outputFoPath)
+    {
+        XslCompiledTransform xslt = new XslCompiledTransform();
+        xslt.Load(xslPath);
+
+        using (XmlReader reader = XmlReader.Create(xmlPath))
+        using (XmlWriter writer = XmlWriter.Create(outputFoPath, new XmlWriterSettings { Indent = true }))
+        {
+            xslt.Transform(reader, writer);
+        }
+
+        Console.WriteLine($"FO transformacija uspešna: {outputFoPath}");
+    }
+}
