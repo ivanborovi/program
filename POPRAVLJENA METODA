@@ -1,8 +1,0 @@
-public void IzpisiStOdlicnjakov()
-{
-    string query = "count(//student[povprecje >= 9])";
-    Console.WriteLine("=== Število odličnjakov (povprečje >= 9) ===");
-    double stOdlicnjakov = (double)_nav.Evaluate(query);
-    Console.WriteLine($"Število odličnjakov: {stOdlicnjakov}");
-    Console.WriteLine();
-}
